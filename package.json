@@ -36,9 +36,13 @@
     "eslint": "^8.57.0",
     "eslint-plugin-qwik": "^1.5.5",
     "prettier": "^3.2.5",
+    "supabase-auth-helpers-qwik": "^0.0.3",
     "typescript": "5.4.5",
     "undici": "*",
     "vite": "^5.2.10",
     "vite-tsconfig-paths": "^4.2.1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4"
   }
 }
