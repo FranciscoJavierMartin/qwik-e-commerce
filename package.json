@@ -24,12 +24,13 @@
     "lint": "eslint \"src/**/*.ts*\"",
     "preview": "qwik build preview && vite preview --open",
     "start": "vite --open --mode ssr",
-    "qwik": "qwik",
-    "supabase": "supabase"
+    "supabase": "supabase",
+    "qwik": "qwik"
   },
   "devDependencies": {
     "@builder.io/qwik": "^1.5.5",
     "@builder.io/qwik-city": "^1.5.5",
+    "@orama/orama": "^1.2.11",
     "@types/eslint": "^8.56.10",
     "@types/node": "^20.12.7",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
