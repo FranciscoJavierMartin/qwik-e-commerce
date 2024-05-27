@@ -15,11 +15,20 @@ type Product = {
   id: number;
   name: string;
   description: string;
-  price: string;
+  price: number;
   image: string;
+  slug: string;
 };
 
-let oramaDb: Orama;
+const ORAMA_SCHEMA = {
+  id: 'string',
+  name: 'string',
+  description: 'string',
+  price: 'number',
+  image: 'string',
+} as const;
+
+let oramaDb: Orama<typeof ORAMA_SCHEMA>;
 
 export const useProducts = routeLoader$(async () => {
   const { data } = await supabaseClient.from('products').select('*');
@@ -107,6 +116,9 @@ export default component$(() => {
                   src={`/images/${product.image}`}
                   alt={product.name}
                   class='aspect-square size-full rounded-md object-cover'
+                  onClick$={() => {
+                    navigate(`/detail/${product.slug}`);
+                  }}
                 />
               </div>
             </div>
