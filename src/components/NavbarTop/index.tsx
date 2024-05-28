@@ -1,16 +1,8 @@
-import { component$, useComputed$, useContext } from '@builder.io/qwik';
+import { component$ } from '@builder.io/qwik';
 import Logo from '~/assets/qwik.svg?jsx';
-import { STORE_CONTEXT } from '~/routes/layout';
-import { type Store } from '~/utils/store';
-
-export function getCartQuantity(cart: Store['cart']): number {
-  return cart.products.reduce((total, item) => total + item.quantity, 0);
-}
+import CartIcon from '~/components/icons/CartIcon';
 
 export default component$(() => {
-  const store = useContext(STORE_CONTEXT);
-  const cartQuantitySig = useComputed$(() => getCartQuantity(store.cart));
-
   return (
     <header
       data-testid='navbar-top'
@@ -21,7 +13,7 @@ export default component$(() => {
         <div class='flex w-full justify-center text-3xl font-bold'>
           Qwik e-commerce
         </div>
-        <div class='w-12' />
+        <CartIcon />
       </div>
     </header>
   );
