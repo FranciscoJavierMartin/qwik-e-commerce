@@ -1,8 +1,9 @@
-import { component$ } from '@builder.io/qwik';
+import { component$, useSignal } from '@builder.io/qwik';
 import {
   type RequestHandler,
   routeLoader$,
   useNavigate,
+  server$,
 } from '@builder.io/qwik-city';
 import type { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { HeartIcon } from '~/components/icons/HeartIcon';
@@ -19,33 +20,65 @@ export const onGet: RequestHandler = async ({ cacheControl }) => {
   });
 };
 
-export const useProductDetail = routeLoader$(async ({ params, status }) => {
-  const slug = params.slug;
-  const { data }: PostgrestSingleResponse<Product[]> = await supabaseClient
-    .from('products')
-    .select('*')
-    .eq('slug', slug);
+export const useProductDetail = routeLoader$(
+  async ({ params, resolveValue }) => {
+    let res: { product: Product | null; isFavorite: boolean };
+    const slug = params.slug;
+    const { data }: PostgrestSingleResponse<Product[]> = await supabaseClient
+      .from('products')
+      .select('*')
+      .eq('slug', slug);
 
-  if (!data) {
-    status(404);
-  }
+    if (!data || !data.length) {
+      res = { product: null, isFavorite: false };
+    } else {
+      let isFavorite: boolean = false;
+      const user = await resolveValue(useUser);
 
-  return data ? data[0] : null;
-});
+      if (user) {
+        const favoriteResponse = await supabaseClient
+          .from('favorites')
+          .select('*')
+          .match({ user_id: user.id, product_id: data[0].id });
+        isFavorite =
+          !!favoriteResponse.data && favoriteResponse.data.length > 0;
+      }
+
+      res = { product: data[0], isFavorite };
+    }
+
+    return res;
+  },
+);
+
+export const changeFavorite = server$(
+  async (userId: string, productId: number, isFavorite: boolean) => {
+    if (isFavorite) {
+      await supabaseClient
+        .from('favorites')
+        .insert({ user_id: userId, product_id: productId });
+    } else {
+      await supabaseClient
+        .from('favorites')
+        .delete()
+        .match({ user_id: userId, product_id: productId });
+    }
+  },
+);
 
 export default component$(() => {
   const navigate = useNavigate();
   const userSig = useUser();
-  const productDetail = useProductDetail();
+  const productDetail = useSignal(useProductDetail().value);
 
-  return !productDetail.value ? (
+  return !productDetail.value.product ? (
     <div>Sorry, looks like we don't have this product.</div>
   ) : (
     <div>
       <div class='mx-auto max-w-6xl px-4 py-10'>
         <div>
           <h2 class='my-8 text-3xl font-light tracking-tight text-gray-900 sm:text-5xl'>
-            {productDetail.value.name}
+            {productDetail.value.product.name}
           </h2>
           <div class='mt-4 md:mt-12 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8'>
             <div class='mx-auto w-full max-w-2xl sm:block lg:max-w-none'>
@@ -55,8 +88,8 @@ export default component$(() => {
                     loading='eager'
                     width={400}
                     height={400}
-                    src={`/images/${productDetail.value.image}`}
-                    alt={productDetail.value.name}
+                    src={`/images/${productDetail.value.product.image}`}
+                    alt={productDetail.value.product.name}
                     class='aspect-square size-full rounded-md object-cover'
                   />
                 </div>
@@ -67,12 +100,14 @@ export default component$(() => {
                 <h3 class='sr-only'>Description</h3>
                 <div
                   class='text-base text-gray-700'
-                  dangerouslySetInnerHTML={productDetail.value.description}
+                  dangerouslySetInnerHTML={
+                    productDetail.value.product.description
+                  }
                 />
               </div>
               <div class='mt-10 flex flex-col sm:flex-row sm:items-center'>
-                $ {productDetail.value.price}
-                <div class='flex px-4 align-baseline sm:flex-col'>
+                $ {productDetail.value.product.price}
+                <div class='flex px-4 align-baseline'>
                   {userSig.value ? (
                     <button
                       type='button'
@@ -109,7 +144,22 @@ export default component$(() => {
                     type='button'
                     class='ml-4 flex items-center justify-center rounded-md p-3 text-gray-400 hover:bg-gray-100 hover:text-gray-500'
                   >
-                    <HeartIcon />
+                    <HeartIcon
+                      active={productDetail.value.isFavorite}
+                      onClick$={async () => {
+                        if (userSig.value) {
+                          await changeFavorite(
+                            userSig.value.id,
+                            productDetail.value.product!.id,
+                            !productDetail.value.isFavorite,
+                          );
+                          productDetail.value = {
+                            ...productDetail.value,
+                            isFavorite: !productDetail.value.isFavorite,
+                          };
+                        }
+                      }}
+                    />
                     <span class='sr-only'>Add to favorites</span>
                   </button>
                 </div>
