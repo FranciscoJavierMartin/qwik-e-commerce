@@ -1,4 +1,4 @@
-import { $, component$, useSignal } from '@builder.io/qwik';
+import { $, component$, useContext, useSignal } from '@builder.io/qwik';
 import {
   routeLoader$,
   server$,
@@ -9,7 +9,7 @@ import type { Orama } from '@orama/orama';
 import { create, insert, search } from '@orama/orama';
 import { supabaseClient } from '~/utils/supabase';
 import { IconShoppingCart } from '~/components/icons/IconShoppingCart';
-import { useUser } from './layout';
+import { STORE_CONTEXT, useUser } from './layout';
 
 type Product = {
   id: number;
@@ -71,6 +71,7 @@ export default component$(() => {
   const productsSig = useProducts();
   const userSig = useUser();
   const resultsSig = useSignal<Product[]>(productsSig.value);
+  const store = useContext(STORE_CONTEXT);
 
   const onSearch = $(async (term: string) => {
     if (!term) {
@@ -143,7 +144,19 @@ export default component$(() => {
                       'disabled:bg-disabled-300 bg-blue-700 hover:bg-blue-800 active:bg-blue-900',
                     ]}
                     onClick$={() => {
-                      console.log('Add to cart');
+                      const cartProduct = [...store.cart.products].find(
+                        (p) => p.id === product.id,
+                      );
+
+                      if (cartProduct) {
+                        cartProduct.quantity += 1;
+                        store.cart.products = [...store.cart.products];
+                      } else {
+                        store.cart.products = [
+                          ...store.cart.products,
+                          { ...product, quantity: 1 },
+                        ];
+                      }
                     }}
                   >
                     <IconShoppingCart />
