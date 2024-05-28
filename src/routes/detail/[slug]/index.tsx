@@ -1,11 +1,23 @@
 import { component$ } from '@builder.io/qwik';
-import { routeLoader$, useNavigate } from '@builder.io/qwik-city';
+import {
+  type RequestHandler,
+  routeLoader$,
+  useNavigate,
+} from '@builder.io/qwik-city';
 import type { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { HeartIcon } from '~/components/icons/HeartIcon';
 import { IconShoppingCart } from '~/components/icons/IconShoppingCart';
 import { useUser } from '~/routes/layout';
 import type { Product } from '~/utils/store';
 import { supabaseClient } from '~/utils/supabase';
+
+export const onGet: RequestHandler = async ({ cacheControl }) => {
+  cacheControl({
+    maxAge: 60,
+    sMaxAge: 60,
+    staleWhileRevalidate: 120,
+  });
+};
 
 export const useProductDetail = routeLoader$(async ({ params, status }) => {
   const slug = params.slug;
