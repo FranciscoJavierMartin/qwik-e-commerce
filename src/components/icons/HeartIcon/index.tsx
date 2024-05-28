@@ -1,14 +1,20 @@
-import { component$ } from '@builder.io/qwik';
+import { type PropFunction, component$ } from '@builder.io/qwik';
 
-export const HeartIcon = component$(() => {
+type HeartIconProps = {
+  active: boolean;
+  onClick$?: PropFunction<() => void>;
+};
+
+export const HeartIcon = component$<HeartIconProps>(({ active, onClick$ }) => {
   return (
     <svg
       xmlns='http://www.w3.org/2000/svg'
       class='size-6 flex-shrink-0'
-      fill='none'
+      fill={active ? 'red' : 'none'}
       viewBox='0 0 24 24'
       stroke='currentColor'
       stroke-width='2'
+      onClick$={() => onClick$ && onClick$()}
     >
       <path
         stroke-linecap='round'
