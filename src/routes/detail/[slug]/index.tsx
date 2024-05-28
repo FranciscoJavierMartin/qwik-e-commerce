@@ -1,23 +1,31 @@
-import { component$, useSignal } from '@builder.io/qwik';
+import {
+  component$,
+  useContext,
+  useSignal,
+  useVisibleTask$,
+} from '@builder.io/qwik';
 import {
   type RequestHandler,
   routeLoader$,
   useNavigate,
   server$,
+  useLocation,
 } from '@builder.io/qwik-city';
 import type { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { HeartIcon } from '~/components/icons/HeartIcon';
 import { IconShoppingCart } from '~/components/icons/IconShoppingCart';
-import { useUser } from '~/routes/layout';
+import { STORE_CONTEXT, useUser } from '~/routes/layout';
 import type { Product } from '~/utils/store';
 import { supabaseClient } from '~/utils/supabase';
 
-export const onGet: RequestHandler = async ({ cacheControl }) => {
+export const onGet: RequestHandler = async ({ cacheControl, params, next }) => {
   cacheControl({
     maxAge: 60,
     sMaxAge: 60,
     staleWhileRevalidate: 120,
   });
+  await supabaseClient.rpc('increment_views', { page_slug: params.slug });
+  await next();
 };
 
 export const useProductDetail = routeLoader$(
@@ -51,6 +59,15 @@ export const useProductDetail = routeLoader$(
   },
 );
 
+export const useCurrentViews = routeLoader$(async ({ params }) => {
+  const { data } = await supabaseClient
+    .from('page_views')
+    .select('views')
+    .eq('page', params.slug);
+
+  return data && data[0] ? data[0].views : 1;
+});
+
 export const changeFavorite = server$(
   async (userId: string, productId: number, isFavorite: boolean) => {
     if (isFavorite) {
@@ -69,7 +86,33 @@ export const changeFavorite = server$(
 export default component$(() => {
   const navigate = useNavigate();
   const userSig = useUser();
+  const viewsSig = useSignal(useCurrentViews().value);
+  const location = useLocation();
+  const store = useContext(STORE_CONTEXT);
   const productDetail = useSignal(useProductDetail().value);
+
+  useVisibleTask$(({ cleanup }) => {
+    const sub = supabaseClient
+      .channel('custom-all-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'page_views' },
+        async (payload) => {
+          if (
+            payload.eventType === 'UPDATE' &&
+            payload.new.page === location.params.slug
+          ) {
+            const newViews = payload.new.views;
+            viewsSig.value = newViews;
+          }
+        },
+      )
+      .subscribe();
+
+    cleanup(() => {
+      sub.unsubscribe();
+    });
+  });
 
   return !productDetail.value.product ? (
     <div>Sorry, looks like we don't have this product.</div>
@@ -80,6 +123,7 @@ export default component$(() => {
           <h2 class='my-8 text-3xl font-light tracking-tight text-gray-900 sm:text-5xl'>
             {productDetail.value.product.name}
           </h2>
+          <span>Views {viewsSig.value.toString()}</span>
           <div class='mt-4 md:mt-12 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8'>
             <div class='mx-auto w-full max-w-2xl sm:block lg:max-w-none'>
               <span class='overflow-hidden rounded-md'>
@@ -119,7 +163,19 @@ export default component$(() => {
                         'disabled:bg-disabled-300 bg-blue-700 hover:bg-blue-800 active:bg-blue-900',
                       ]}
                       onClick$={() => {
-                        console.log('Add to cart');
+                        const cartProduct = [...store.cart.products].find(
+                          (p) => p.id === productDetail.value.product!.id,
+                        );
+
+                        if (cartProduct) {
+                          cartProduct.quantity += 1;
+                          store.cart.products = [...store.cart.products];
+                        } else {
+                          store.cart.products = [
+                            ...store.cart.products,
+                            { ...productDetail.value.product!, quantity: 1 },
+                          ];
+                        }
                       }}
                     >
                       <IconShoppingCart />
