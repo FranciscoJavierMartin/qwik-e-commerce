@@ -91,6 +91,7 @@ export default component$(() => {
   const store = useContext(STORE_CONTEXT);
   const productDetail = useSignal(useProductDetail().value);
 
+  // eslint-disable-next-line qwik/no-use-visible-task
   useVisibleTask$(({ cleanup }) => {
     const sub = supabaseClient
       .channel('custom-all-channel')
